@@ -66,25 +66,27 @@ persist(Doc,  #{conn := Conn} = State) ->
 
   TableName = escape(DocName),
 
-  Fields = sumo_internal:doc_fields(Doc),
-  NPFields = maps:remove(IdField, Fields), % Non-primary fields.
-  NPFieldNames = maps:keys(NPFields),
-  NPColumnNames = lists:map(fun escape/1, NPFieldNames),
-
-  Schema = sumo_internal:get_schema(DocName),
-  SchemaFields = sumo_internal:schema_fields(Schema),
-  ColumnTypes = [
-    {sumo_internal:field_name(F), sumo_internal:field_type(F), sumo_internal:field_attrs(F)}
-    || F <- SchemaFields
-  ],
-
-  NPColumnValues = lists:map(fun (N) ->
-    {N, T, A} = lists:keyfind(N, 1, ColumnTypes),
-    sleep_fun(T, N, maps:get(N, Fields), A)
-  end, NPFieldNames),
-
   {Sql, Values} = case Id of
     undefined ->
+      NewId = new_id(sumo_internal:id_field_type(DocName)),
+      Doc1 = sumo_internal:set_field(id, NewId, Doc),
+      Fields = sumo_internal:doc_fields(Doc1),
+      NPFieldNames = maps:keys(Fields),
+
+      NPColumnNames = lists:map(fun escape/1, NPFieldNames),
+
+      Schema = sumo_internal:get_schema(DocName),
+      SchemaFields = sumo_internal:schema_fields(Schema),
+      ColumnTypes = [
+        {sumo_internal:field_name(F), sumo_internal:field_type(F), sumo_internal:field_attrs(F)}
+        || F <- SchemaFields
+      ],
+
+      NPColumnValues = lists:map(fun (N) ->
+        {N, T, A} = lists:keyfind(N, 1, ColumnTypes),
+        sleep_fun(T, N, maps:get(N, Fields), A)
+                                 end, NPFieldNames),
+
       NPColumnsNamesCSV = string:join(NPColumnNames, ", "),
 
       SlotsFun = fun(N) -> [" $", integer_to_list(N), " "]  end,
@@ -104,6 +106,23 @@ persist(Doc,  #{conn := Conn} = State) ->
 
       {InsertSql, InsertValues};
     Id ->
+      Fields = sumo_internal:doc_fields(Doc),
+      NPFields = maps:remove(IdField, Fields), % Non-primary fields.
+      NPFieldNames = maps:keys(NPFields),
+      NPColumnNames = lists:map(fun escape/1, NPFieldNames),
+
+      Schema = sumo_internal:get_schema(DocName),
+      SchemaFields = sumo_internal:schema_fields(Schema),
+      ColumnTypes = [
+        {sumo_internal:field_name(F), sumo_internal:field_type(F), sumo_internal:field_attrs(F)}
+        || F <- SchemaFields
+      ],
+
+      NPColumnValues = lists:map(fun (N) ->
+        {N, T, A} = lists:keyfind(N, 1, ColumnTypes),
+        sleep_fun(T, N, maps:get(N, Fields), A)
+                                 end, NPFieldNames),
+
       UpdateFun = fun(FieldName, {N, Slots}) ->
         Slot = [FieldName, " = $", integer_to_list(N), " "],
         {N + 1, [Slot | Slots]}
@@ -233,6 +252,7 @@ find_by(DocName, Conditions, Limit, Offset, State) ->
   Response   :: sumo_store:result([sumo_internal:doc()], state()).
 find_by(DocName, Conditions, SortFields, Limit, Offset, #{conn := Conn} = State) ->
   {Values, CleanConditions} = sumo_sql_builder:values_conditions(Conditions),
+
   Clauses = sumo_sql_builder:where_clause(
     CleanConditions,
     fun escape/1,
@@ -495,3 +515,10 @@ sleep_fun(custom, _, FieldValue, Attrs) ->
   end;
 sleep_fun(_, _, FieldValue, _) ->
   FieldValue.
+
+%% @private
+new_id(string)    -> uuid:uuid_to_string(uuid:get_v4(), standard);
+new_id(binary)    -> uuid:uuid_to_string(uuid:get_v4(), binary_standard);
+new_id(integer)   -> <<Id:128>> = uuid:get_v4(), Id;
+new_id(float)     -> <<Id:128>> = uuid:get_v4(), Id * 1.0;
+new_id(FieldType) -> exit({unimplemented, FieldType}).
