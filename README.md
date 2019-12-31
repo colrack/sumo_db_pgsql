@@ -45,7 +45,6 @@ Within the console:
 
 ```erlang
 > application:ensure_all_started(sumo_db_pgsql).
-12:02:00.250 [info] Application lager started on node nonode@nohost
 12:02:00.250 [info] Application crypto started on node nonode@nohost
 12:02:00.251 [info] Application asn1 started on node nonode@nohost
 12:02:00.251 [info] Application public_key started on node nonode@nohost
@@ -58,7 +57,7 @@ Within the console:
 12:02:00.256 [info] Application uuid started on node nonode@nohost
 12:02:00.337 [info] Application sumo_db started on node nonode@nohost
 12:02:00.341 [info] Application sumo_db_pgsql started on node nonode@nohost
-{ok,[syntax_tools,compiler,goldrush,lager,crypto,asn1,
+{ok,[syntax_tools,compiler,goldrush,crypto,asn1,
      public_key,ssl,epgsql,sasl,worker_pool,quickrand,uuid,
      sumo_db,sumo_db_pgsql]}
 
