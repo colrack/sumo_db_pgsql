@@ -78,10 +78,23 @@ init(Options) ->
   Host     = proplists:get_value(host,     Options, "localhost"),
   Username = proplists:get_value(username, Options),
   Password = proplists:get_value(password, Options),
-  Opts = [
-    {port,     proplists:get_value(port,     Options, 5432)},
-    {database, proplists:get_value(database, Options)}
-  ],
+  Opts1 = proplists:get_value(opts, Options),
+  Opts2 = #{
+    port =>     proplists:get_value(port,     Options, 5432),
+    database => proplists:get_value(database, Options),
+    ssl_opts => [
+      {verify, verify_peer},
+      {cacerts, certifi:cacerts()},
+      {depth, 99},
+      {server_name_indication, Host},
+      {reuse_sessions, false},
+      {verify_fun,
+        {fun ssl_verify_hostname:verify_fun/3, [{check_hostname, Host}]}
+      }
+    ]
+  },
+
+  Opts = maps:merge(Opts1, Opts2),
 
   {ok, #{host => Host, user => Username, pass => Password, opts => Opts}}.
 
